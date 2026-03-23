@@ -3,6 +3,7 @@ import (
 	"bufio" // for reading files
 	"fmt" // for printing output
 	"os" // work with files - open, close
+	"strings" // for string manipulation
 )
 
 func main() {
@@ -18,11 +19,15 @@ func main() {
 	defer file.Close() // close the file when the function finishes
 	scanner := bufio.NewScanner(file)
 	// this will create a scanner object that will read the file line by line i.e doesnt load the entire file into memory at once
+	errorCount := 0
+
 	for scanner.Scan(){
 		line :=scanner.Text()
-		fmt.Println(line)
-		
+		if strings.Contains(line, "ERROR"){
+			errorCount++
+		}
 	}
+	fmt.Printf("Total number of errors: %d\n", errorCount) // print the total number of errors
 
 
 }
