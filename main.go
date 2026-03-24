@@ -4,12 +4,14 @@ import (
 	"fmt" // for printing output
 	"os" // work with files - open, close
 	"strings" // for string manipulation
-	
+	"sync" // for synchronization primitives like WaitGroup
 )
 // jobs channnel - read only channel to send log lines to worker goroutines
 // results channel - write only channel to receive counts from worker goroutines
 // worker - receives line , processes it and sends results back
-func worker(jobs <-chan string , results chan<- int){
+func worker(jobs <-chan string , results chan<- int , wg *sync.WaitGroup){
+	defer wg.Done() // signal that the worker is done when the function finishes
+	// when this worker finishes , reduce counter by 1
 	for line := range jobs {
 		count :=0
 		if isErrorLine(line) {
@@ -54,19 +56,26 @@ func main() {
 
 	results := make(chan int) // create a channel to receive counts from worker goroutines , it will carry counts of errors
 	numWorkers :=3
+	var wg sync.WaitGroup
 
 	for i:=0; i<numWorkers; i++{
-		go worker(jobs, results)//starts a gouroutine that runs the worker function, passing the jobs and results channels as arguments
+		wg.Add(1) // increment the WaitGroup counter for each worker
+		go worker(jobs, results, &wg)//starts a gouroutine that runs the worker function, passing the jobs and results channels as arguments and a pointer to the WaitGroup
 	}
+	go func() {
+	for scanner.Scan() {
+		jobs <- scanner.Text() // send each line to workers
+	}
+	close(jobs) // tell workers: no more data
+}()
 
 	go func(){
-		for scanner.Scan() {
-			jobs <- scanner.Text() //sends lines to workers
-		}
-		close(jobs)
+		wg.Wait() // wait for all workers to finish
+		close(results) // close the results channel after all workers are done
 	}()
-	for i:=0;i<4;i++{
-		errorCount += <-results // receive counts from workers and add them to the total error count
+		
+	for result := range results{
+		errorCount += result // add the count from the worker to the total error count
 	}
 	fmt.Printf("Total number of errors: %d\n", errorCount) // print the total number of errors
 	// fmt.Printf("Total number of info messages: %d\n", infoCount) // print the total number of info messages
