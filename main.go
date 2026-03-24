@@ -6,18 +6,32 @@ import (
 	"strings" // for string manipulation
 	"sync" // for synchronization primitives like WaitGroup
 )
+
+type Result struct {
+	errorCount int
+	infoCount int
+	ip string
+	hasIP bool
+}
 // jobs channnel - read only channel to send log lines to worker goroutines
 // results channel - write only channel to receive counts from worker goroutines
 // worker - receives line , processes it and sends results back
-func worker(jobs <-chan string , results chan<- int , wg *sync.WaitGroup){
+func worker(jobs <-chan string , results chan<- Result , wg *sync.WaitGroup){
 	defer wg.Done() // signal that the worker is done when the function finishes
 	// when this worker finishes , reduce counter by 1
 	for line := range jobs {
-		count :=0
+		res := Result{}
 		if isErrorLine(line) {
-			count =1
+			res.errorCount=1
 		}
-	results <-count
+	    if isInfoLine(line){
+			res.infoCount=1
+		}
+		if ip , ok:= extractIP(line); ok{
+			res.ip=ip
+			res.hasIP=true
+		}
+		results <-res
 }
 }
 
@@ -42,19 +56,19 @@ func main() {
 	// if error comes then error handling
 
 	if err != nil {
-		fmt.Println("Error opening file:", err) // print the error message
-		return // exit the program
+		fmt.Println("Error opening file:", err)
+		return 
 	}
 	defer file.Close() // close the file when the function finishes
 	scanner := bufio.NewScanner(file)
 	// this will create a scanner object that will read the file line by line i.e doesnt load the entire file into memory at once
 	errorCount := 0
-	// infoCount := 0
-	// ipCount := make(map[string]int) // create a map to count the occurrences of each IP address
+	infoCount := 0
+	ipCount := make(map[string]int) // create a map to count the occurrences of each IP address
 	
 	jobs := make(chan string) // create a channel to send lines to worker goroutines , it will carry log lines
 
-	results := make(chan int) // create a channel to receive counts from worker goroutines , it will carry counts of errors
+	results := make(chan Result) // create a channel to receive counts from worker goroutines 
 	numWorkers :=3
 	var wg sync.WaitGroup
 
@@ -75,13 +89,17 @@ func main() {
 	}()
 		
 	for result := range results{
-		errorCount += result // add the count from the worker to the total error count
+		errorCount += result.errorCount
+		infoCount += result.infoCount
+		if result.hasIP {
+			ipCount[result.ip]++ // increment the count for this IP address in the map
+		} // add the count from the worker to the total error count
 	}
 	fmt.Printf("Total number of errors: %d\n", errorCount) // print the total number of errors
-	// fmt.Printf("Total number of info messages: %d\n", infoCount) // print the total number of info messages
+	fmt.Printf("Total number of info messages: %d\n", infoCount) // print the total number of info messages
 
-	// fmt.Println("IP address counts:") // print the header for the IP address counts
-	// for ip,count :=range ipCount {
-	// 	fmt.Println(ip, ":", count) 
-	// }
+	fmt.Println("IP address counts:") // print the header for the IP address counts
+	for ip,count :=range ipCount {
+		fmt.Println(ip, ":", count) 
+	}
 }
