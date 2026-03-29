@@ -1,4 +1,0 @@
-2026-03-22 INFO User login IP=192.168.1.1
-2026-03-22 ERROR Database failed
-2026-03-22 INFO Request /home took 120ms IP=192.168.1.2
-2026-03-22 ERROR Timeout error IP=192.168.1.1
