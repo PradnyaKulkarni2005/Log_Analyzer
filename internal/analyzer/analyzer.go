@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 	"log-analyzer/utils"
+	"time"
 
 )
 // worker function processes log lines from the jobs channel, analyzes them, and sends results to the results channel. It uses a WaitGroup to signal when it's done processing.
@@ -113,4 +114,62 @@ func AnalyzeLogs(data string) FinalResult {
 
 
 	return final
+}
+
+func AnalyzeLogsSequential(data string) FinalResult {
+	lines := strings.Split(strings.TrimSpace(data), "\n")
+
+	final := FinalResult{
+		IPCount: make(map[string]int),
+	}
+
+	for _, line := range lines {
+
+		if utils.IsErrorLine(line) {
+			final.TotalErrors++
+		}
+
+		if utils.IsInfoLine(line) {
+			final.TotalInfo++
+		}
+
+		if ip, ok := utils.ExtractIP(line); ok {
+			final.IPCount[ip]++
+		}
+
+		// slow request
+		if time, ok := utils.ExtractResponseTime(line); ok {
+			if time > 100 {
+				final.SlowRequests = append(final.SlowRequests, line)
+			}
+		}
+	}
+
+	final.TotalLogs = len(lines)
+
+	return final
+}
+func AnalyzeWithPerformance(data string) FinalResult {
+
+	// ⏱️ Sequential timing
+	startSeq := time.Now()
+	_ = AnalyzeLogsSequential(data) // ignore result
+	seqTime := time.Since(startSeq).Milliseconds()
+
+	// ⏱️ Concurrent timing
+	startCon := time.Now()
+	conResult := AnalyzeLogs(data)
+	conTime := time.Since(startCon).Milliseconds()
+
+	// 📊 Add performance data
+	conResult.Performance = Performance{
+		SequentialTimeMs: seqTime,
+		ConcurrentTimeMs: conTime,
+	}
+
+	if conTime > 0 {
+		conResult.Performance.Speedup = float64(seqTime) / float64(conTime)
+	}
+
+	return conResult
 }

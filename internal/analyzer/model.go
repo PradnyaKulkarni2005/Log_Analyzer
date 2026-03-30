@@ -19,4 +19,11 @@ type FinalResult struct {
 	SuspiciousIPs []string
 	SlowRequests []string
 	LogsPerMinute map[string]int
+	Performance Performance
+}
+
+type Performance struct {
+	SequentialTimeMs  int64
+	ConcurrentTimeMs  int64
+	Speedup           float64
 }
