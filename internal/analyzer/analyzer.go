@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 	"log-analyzer/utils"
+
 )
 // worker function processes log lines from the jobs channel, analyzes them, and sends results to the results channel. It uses a WaitGroup to signal when it's done processing.
 
@@ -26,7 +27,14 @@ func worker(jobs <-chan string, results chan<- Result, wg *sync.WaitGroup) {
 			res.IP = ip
 			res.HasIP = true
 		}
-
+		// slow request detection - set a threshold time and check if any log line contains a request that exceeds this threshold
+		if time, ok := utils.ExtractResponseTime(line); ok {
+	if time > 100 {
+		res.SlowRequest = line
+	}
+	}
+	
+	
 		results <- res
 	}
 }
@@ -69,7 +77,40 @@ func AnalyzeLogs(data string) FinalResult {
 		if res.HasIP {
 			final.IPCount[res.IP]++
 		}
+		// add slow request to the final result if it exists
+		if res.SlowRequest != "" {
+	final.SlowRequests = append(final.SlowRequests, res.SlowRequest)
+		}
+		
 	}
+
+	// calculating error rate - (total errors / total logs ) * 100
+	final.TotalLogs = len(lines)
+	if final.TotalLogs > 0 {
+	final.ErrorRate = float64(final.TotalErrors) / float64(final.TotalLogs) * 100
+	}
+
+	// calculating the top IP - most frequent IP address
+	maxCount := 0
+	for ip, count := range final.IPCount {
+		if count > maxCount {
+			maxCount = count
+			final.TopIP = ip
+		}
+	}
+
+	// suspicious IP detection
+	//logic - set a threshold , if count of a particular IP exceeds the threshold, consider it suspicious
+	threshold := 4
+	for ip, count := range final.IPCount {
+	if count > threshold {
+		final.SuspiciousIPs = append(final.SuspiciousIPs, ip)
+	}
+	}
+
+	// slow request detection - set a threshold time and check if any log line contains a request that exceeds this threshold
+	
+
 
 	return final
 }

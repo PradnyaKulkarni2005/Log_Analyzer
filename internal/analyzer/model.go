@@ -5,10 +5,18 @@ type Result struct {
 	InfoCount  int
 	IP         string
 	HasIP      bool
+	SlowRequest string
+	LogsPerMinute map[string]int
 }
 
 type FinalResult struct {
 	TotalErrors int
 	TotalInfo   int
-	IPCount     map[string]int
+	TotalLogs   int
+	ErrorRate float64
+	IPCount map[string]int
+	TopIP   string
+	SuspiciousIPs []string
+	SlowRequests []string
+	LogsPerMinute map[string]int
 }

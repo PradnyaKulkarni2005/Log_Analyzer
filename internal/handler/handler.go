@@ -20,10 +20,28 @@ func AnalyzeHandler(w http.ResponseWriter, r *http.Request) {
 	result := analyzer.AnalyzeLogs(string(body))
 	// write the results back to the client
 	fmt.Fprintf(w, "Errors: %d\n", result.TotalErrors)
-	fmt.Fprintf(w, "Info: %d\n", result.TotalInfo)
-	fmt.Fprintf(w, "IP Counts:\n")
+fmt.Fprintf(w, "Info: %d\n", result.TotalInfo)
+fmt.Fprintf(w, "Total Logs: %d\n", result.TotalLogs)
 
-	for ip, count := range result.IPCount {
-		fmt.Fprintf(w, "%s : %d\n", ip, count)
-	}
+fmt.Fprintf(w, "Error Rate: %.2f%%\n", result.ErrorRate)
+
+fmt.Fprintf(w, "Top IP: %s\n", result.TopIP)
+
+// Suspicious IPs
+fmt.Fprintf(w, "Suspicious IPs:\n")
+for _, ip := range result.SuspiciousIPs {
+	fmt.Fprintf(w, "- %s\n", ip)
+}
+
+// Slow Requests
+fmt.Fprintf(w, "Slow Requests:\n")
+for _, req := range result.SlowRequests {
+	fmt.Fprintf(w, "- %s\n", req)
+}
+
+// IP Counts (keep this at end)
+fmt.Fprintf(w, "IP Counts:\n")
+for ip, count := range result.IPCount {
+	fmt.Fprintf(w, "%s : %d\n", ip, count)
+}
 }
